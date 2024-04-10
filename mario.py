@@ -96,6 +96,7 @@ class Mario(arcade.Sprite):
         self.shrink_textures.append(arcade.load_texture(f"{main_path}mario_shrink_2.png"))
         self.shrink_textures.append(self.small_idle_texture_pair[0])
 
+
         # Set the initial textures
         self.texture = self.small_idle_texture_pair[0]
         self.idle_textures = self.small_idle_texture_pair
@@ -179,6 +180,7 @@ class Mario(arcade.Sprite):
             # Mario collected a fire powerup
             self.is_growing = False
 
+
     def update_movement(self, left_key_down, right_key_down, jump_key_down, sprint_key_down, physics_engine):
         # Jump if the up key is pressed
         if jump_key_down:
@@ -249,6 +251,9 @@ class Mario(arcade.Sprite):
                     self.change_x += PLAYER_FRICTION
                 else:
                     self.change_x = 0
+
+    def slidedown_flag(self):
+        pass
 
     def update_animation(self, delta_time: float = 1 / 60):
         

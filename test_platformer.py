@@ -38,6 +38,7 @@ LAYER_NAME_MYSTERY_COIN = "Mystery_Coin"
 LAYER_NAME_COINS = "Coins"
 LAYER_NAME_BACKGROUND = "Background"
 LAYER_NAME_PLAYER = "Player"
+LAYER_NAME_FLAG = "Flag"
 
 class MyGame(arcade.Window):
     """
@@ -100,6 +101,13 @@ class MyGame(arcade.Window):
         """Set up the game here. Call this function to restart the game."""
         self.do_update = True
 
+        # Store the save file, as the player has either died or gotten to
+        # a new stage        
+        self.save()
+        
+        # Initialize the set for handling when blocks are nudged
+        self.nudged_blocks_list_set = ([],[],[],[],[])
+                
         # Set a timer
         self.timer = 300
         self.frame_counter = 0
@@ -150,6 +158,9 @@ class MyGame(arcade.Window):
             LAYER_NAME_BACKGROUND: {
                 "use_spatial_hash": True,
             },
+            LAYER_NAME_FLAG: {
+                "use_spatial_hash": True,
+            },
         }
 
         # Read in the tiled map
@@ -169,6 +180,9 @@ class MyGame(arcade.Window):
 
         # Set coins
         self.coin_list = self.tile_map.sprite_lists[LAYER_NAME_COINS]
+
+        # flag tiles
+        self.flag_list = self.tile_map.sprite_lists[LAYER_NAME_FLAG]
 
         # Set background image
         self.background_list = self.tile_map.sprite_lists[LAYER_NAME_BACKGROUND]
@@ -230,25 +244,25 @@ class MyGame(arcade.Window):
     def on_key_press(self, key, modifiers):
         """Called whenever a key is pressed."""
         # Make sure that we are supposed to be doing updates
-        if self.do_update:
-            # Jump
-            if key == arcade.key.UP or key == arcade.key.W:
-                self.jump_key_down = True
-                self.mario.update_movement(self.left_key_down, self.right_key_down, self.jump_key_down, self.sprint_key_down, self.physics_engine)
-                # Prevents the user from double jumping
-                self.jump_key_down = False
-            # Left
-            elif key == arcade.key.LEFT or key == arcade.key.A:
-                self.left_key_down = True
-                self.mario.update_movement(self.left_key_down, self.right_key_down, self.jump_key_down, self.sprint_key_down, self.physics_engine)
-            # Right
-            elif key == arcade.key.RIGHT or key == arcade.key.D:
-                self.right_key_down = True
-                self.mario.update_movement(self.left_key_down, self.right_key_down, self.jump_key_down, self.sprint_key_down, self.physics_engine)
-            # Sprint
-            elif key == arcade.key.J:
-                self.sprint_key_down = True
-                self.mario.update_movement(self.left_key_down, self.right_key_down, self.jump_key_down, self.sprint_key_down, self.physics_engine)
+        #if self.do_update:
+        # Jump
+        if key == arcade.key.UP or key == arcade.key.W:
+            self.jump_key_down = True
+            self.mario.update_movement(self.left_key_down, self.right_key_down, self.jump_key_down, self.sprint_key_down, self.physics_engine)
+            # Prevents the user from double jumping
+            self.jump_key_down = False
+        # Left
+        elif key == arcade.key.LEFT or key == arcade.key.A:
+            self.left_key_down = True
+            self.mario.update_movement(self.left_key_down, self.right_key_down, self.jump_key_down, self.sprint_key_down, self.physics_engine)
+        # Right
+        elif key == arcade.key.RIGHT or key == arcade.key.D:
+            self.right_key_down = True
+            self.mario.update_movement(self.left_key_down, self.right_key_down, self.jump_key_down, self.sprint_key_down, self.physics_engine)
+        # Sprint
+        elif key == arcade.key.J:
+            self.sprint_key_down = True
+            self.mario.update_movement(self.left_key_down, self.right_key_down, self.jump_key_down, self.sprint_key_down, self.physics_engine)
 
 
     def on_key_release(self, key, modifiers):
@@ -281,10 +295,16 @@ class MyGame(arcade.Window):
                 self.mario.center_x = self.screen_center_x + SPRITE_PIXEL_SIZE * CHARACTER_SCALING / 2
                 self.mario.change_x = 0
             
+            
+            self.frame_counter += 1
+            if self.frame_counter > 20:
+                self.timer -= 1
+                self.frame_counter = 0
+            
+            
             # Player dies if they fall below the world or run out of time
             if self.mario.center_y < -SPRITE_PIXEL_SIZE or self.timer <= 0:
                 self.player_die()
-            
             
 
             # Player movement and physics engine
@@ -299,8 +319,14 @@ class MyGame(arcade.Window):
             # Position the camera
             self.center_camera_to_player()
 
+            # if get to flagpole
+            if arcade.check_for_collision_with_list(self.mario, self.flag_list):
+                # make animation
+                self.mario.center_y += -1
+
             # See if the coin is hitting a platform
             coin_hit_list = arcade.check_for_collision_with_list(self.mario, self.coin_list)
+            
 
             for coin in coin_hit_list:
                 self.do_update = False
@@ -309,6 +335,11 @@ class MyGame(arcade.Window):
                 else:
                     self.mario.prev_power()
                 self.coin_count += 1
+                
+                if self.coin_count > 99:
+                    self.lives += 1
+                    self.coin_count = 0
+                
                 # Remove the coin
                 coin.remove_from_sprite_lists()
                 # Play a sound
@@ -316,21 +347,70 @@ class MyGame(arcade.Window):
   
             # Proof of concept of hitting the above block:
             # Testing with breakable blocks first
-            block_hit_list = arcade.get_sprites_at_point((self.mario.center_x, self.mario.center_y + SPRITE_PIXEL_SIZE * CHARACTER_SCALING / 2 + 1), self.platform_breakable_list)
-
+            height_multiplier = int(self.mario.power > 0) + 1
+            
+            
+            # Note that the multiplier for getting either side of mario's head (0.7)
+            # Is just barely smaller than it needs to be - it is possible to
+            # hit the block without it being added to the hit list
+            # However, increasing the value to 0.75 is just barely too much,
+            # and it is possible to hit a block from the side
+            
+            
+            # Git the block list for the left side of mario's head
+            block_hit_list = arcade.get_sprites_at_point((self.mario.center_x - 0.7 * SPRITE_PIXEL_SIZE * CHARACTER_SCALING / 2, self.mario.center_y + height_multiplier * SPRITE_PIXEL_SIZE * CHARACTER_SCALING / 2 + 1), self.platform_breakable_list)
+            
+            # Add to that list the blocks on the right side of mario's head
+            block_hit_list.extend(arcade.get_sprites_at_point((self.mario.center_x + 0.7 * SPRITE_PIXEL_SIZE * CHARACTER_SCALING / 2, self.mario.center_y + height_multiplier * SPRITE_PIXEL_SIZE * CHARACTER_SCALING / 2 + 1), self.platform_breakable_list))
+            
+            # Turn that list into a set to eliminate duplicate values
+            block_hit_list = set(block_hit_list)
             # Later, add a requisite that the mario must be big
             for block in block_hit_list:
                 # Perhaps change this to a call to a function that activates some block_break
                 # event at the position of each broken block
                 # Remove the block
-                block.remove_from_sprite_lists()
-                # Play a sound (change to breaking sound)
-                # arcade.play_sound(self.coin_sound)
+                if self.mario.power > 0:
+                    block.remove_from_sprite_lists()
+                    # Play a sound (change to breaking sound)
+                    # arcade.play_sound(self.coin_sound)
+                
+                else:
+                    # This means Mario is small, bump the block!
+                    self.nudged_blocks_list_set[4].append(block)
+                    # Play a sound (change to nudging sound)
+                    # arcade.play_sound(self.coin_sound)
+            
+            
+            self.nudge_blocks()
 
         else:
             # Only update the animation for Mario
             self.scene.update_animation(delta_time, [LAYER_NAME_PLAYER])
             self.do_update = not self.mario.is_growing
+
+    def nudge_blocks(self):
+        # On every few frames, allow the nudged blocks to move
+        if self.frame_counter % 3 == 0:
+            temp_nudged_blocks_list_set = ([],[],[],[],[])
+            for list_id, nudged_block_list in enumerate(self.nudged_blocks_list_set):
+                for block in nudged_block_list:
+                    # Add the index of the list the block is in, centered around
+                    # the middle list (by subtracting the length less 1, over 2)
+                    # This achieves the effect of going up and down in equal amounts
+                    # The multiplication gives a larger magnitude to the effect
+                    block.center_y += (list_id - 2) * 2
+                    
+                    # If the block is not in the final (lowest)
+                    if list_id-1 >= 0:
+                        # Put the block in a lower list
+                        temp_nudged_blocks_list_set[list_id-1].append(block)
+                    # Otherwise, do not put the block back in any nudging list
+                    
+                self.nudged_blocks_list_set = temp_nudged_blocks_list_set
+
+    def play_flag_animation(self):
+        pass
         
         
     def save(self):
@@ -347,11 +427,9 @@ class MyGame(arcade.Window):
     def player_die(self):
         self.lives -= 1
         # Can likely put these at the start of setup:
-            # self.save() 
             # Give a death screen
         
         # Reset the stage
-
         self.setup()
         
         # For later, give a game over screen if lives reduced to zero (>0 can be infinite)
