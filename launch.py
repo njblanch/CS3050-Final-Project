@@ -41,10 +41,10 @@ class Title_Screen(arcade.View):
         }
 
         one_player = StartButton(text="1 PLAYER GAME", width=200, style = mario_style)
-        two_player = arcade.gui.UIFlatButton(text="2 PLAYER GAME", width=200, style=mario_style)
+        #two_player = arcade.gui.UIFlatButton(text="2 PLAYER GAME", width=200, style=mario_style)
 
         self.v_box.add(one_player)
-        self.v_box.add(two_player)
+        #self.v_box.add(two_player)
 
         self.manager.add(
             arcade.gui.UIAnchorWidget(
