@@ -483,13 +483,12 @@ class MyGame(arcade.Window):
             # See if the coin is touching mario
             coin_hit_list = arcade.check_for_collision_with_list(self.mario, self.coin_list)
             
-
             for coin in coin_hit_list:
-                self.do_update = False
-                if self.mario.power == 0:
-                    self.mario.next_power()
-                else:
-                    self.mario.prev_power()
+                #self.do_update = False
+                # if self.mario.power == 0:
+                #     self.mario.next_power()
+                # else:
+                #     self.mario.prev_power()
                 self.coin_count += 1
                 # Remove the coin
                 coin.remove_from_sprite_lists()
@@ -500,7 +499,7 @@ class MyGame(arcade.Window):
             # Testing with breakable blocks first
             height_multiplier = int(self.mario.power > 0) + 1
             
-            # Git the block list for the left side of mario's head
+            # Get the block list for the left side of mario's head
             block_hit_list = arcade.get_sprites_at_point((self.mario.center_x - 0.7 * SPRITE_PIXEL_SIZE * CHARACTER_SCALING / 2, self.mario.center_y + height_multiplier * SPRITE_PIXEL_SIZE * CHARACTER_SCALING / 2 + 1), self.platform_breakable_list)
            
             # Add to that list the blocks on the right side of mario's head
